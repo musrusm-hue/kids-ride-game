@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Веселая поездка: EXTREME</title>
+    <title>Веселая поездка: MUSIC & SOUNDS</title>
     <style>
         :root {
             --sky: #7ad8d0;
@@ -222,21 +222,27 @@
             width: 100%;
             display: flex;
             justify-content: center;
-            gap: 15px;
+            gap: 10px;
             z-index: 1000;
         }
 
         .hud-item {
             background: var(--white);
-            padding: 8px 15px;
+            padding: 8px 12px;
             border-radius: 30px;
             font-weight: 900;
-            font-size: 1.2rem;
+            font-size: 1rem;
             box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 5px;
             color: #ff6b81;
+        }
+
+        #sound-btn {
+            background: #fff;
+            cursor: pointer;
+            border: none;
         }
 
         #combo-tag {
@@ -324,6 +330,7 @@
         <div class="hud-item">⭐ <span id="val-score">0</span></div>
         <div class="hud-item">🍭 <span id="val-energy">100</span></div>
         <div class="hud-item">🚀 x<span id="val-speed">1.0</span></div>
+        <button id="sound-btn" class="hud-item" onclick="toggleSound()">🔉</button>
     </div>
 
     <div id="game-stage">
@@ -343,13 +350,13 @@
     </div>
 
     <div id="start-overlay" class="overlay">
-        <h1 style="font-size: 3rem; color: #fff; text-shadow: 0 5px 0 rgba(0,0,0,0.1);">KIDS RIDE: EXTREME!</h1>
+        <h1 style="font-size: 3rem; color: #fff; text-shadow: 0 5px 0 rgba(0,0,0,0.1);">SOUND & TRACKS! 🎶</h1>
         <img src="дети.jpeg"
             style="width: 150px; height: 150px; border-radius: 50%; border: 8px solid #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
         <p style="color: #fff; font-size: 1.5rem; margin-top: 20px;">
-            Берегись полиции! 🚓<br>
-            Собирай щиты 🛡️ и магниты 🧲!<br>
-            Скорость растет постоянно! 🔥
+            Новые звуки мотора! 🔊<br>
+            Веселая музыка! 🎹<br>
+            Газуй по полной! 🔥
         </p>
         <button class="btn-big" onclick="startGame()">ГОНКА! 🏁</button>
     </div>
@@ -357,6 +364,96 @@
     <div id="flash-screen" class="flash"></div>
 
     <script>
+        // --- AUDIO ENGINE ---
+        const AudioEngine = {
+            ctx: null,
+            master: null,
+            soundOn: false,
+            engineOsc: null,
+            engineGain: null,
+            musicTimer: null,
+
+            init() {
+                if (this.ctx) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.master = this.ctx.createGain();
+                this.master.connect(this.ctx.destination);
+                this.master.gain.value = 0.5;
+            },
+
+            playSFX(freq, type = 'sine', duration = 0.1, slide = 0) {
+                if (!this.soundOn || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                if (slide) osc.frequency.exponentialRampToValueAtTime(slide, this.ctx.currentTime + duration);
+                g.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(g);
+                g.connect(this.master);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+
+            playCrash() {
+                if (!this.soundOn || !this.ctx) return;
+                const bufferSize = this.ctx.sampleRate * 0.2;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 400;
+                noise.connect(filter);
+                filter.connect(this.master);
+                noise.start();
+            },
+
+            startEngine() {
+                if (!this.soundOn || !this.ctx || this.engineOsc) return;
+                this.engineOsc = this.ctx.createOscillator();
+                this.engineOsc.type = 'triangle';
+                this.engineGain = this.ctx.createGain();
+                this.engineGain.gain.value = 0.05;
+                this.engineOsc.connect(this.engineGain);
+                this.engineGain.connect(this.master);
+                this.engineOsc.start();
+            },
+
+            updateEngine(speedMult) {
+                if (this.engineOsc) {
+                    this.engineOsc.frequency.setTargetAtTime(40 + (speedMult * 20), this.ctx.currentTime, 0.1);
+                }
+            },
+
+            stopEngine() {
+                if (this.engineOsc) { this.engineOsc.stop(); this.engineOsc = null; }
+            },
+
+            playMusicStep() {
+                const notes = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00];
+                const note = notes[Math.floor(Math.random() * notes.length)];
+                this.playSFX(note, 'square', 0.15, note / 2);
+            }
+        };
+
+        function toggleSound() {
+            AudioEngine.init();
+            AudioEngine.soundOn = !AudioEngine.soundOn;
+            document.getElementById('sound-btn').textContent = AudioEngine.soundOn ? '🔉' : '🔇';
+            if (AudioEngine.soundOn && state.active) {
+                AudioEngine.startEngine();
+                AudioEngine.musicTimer = setInterval(() => AudioEngine.playMusicStep(), 200);
+            } else {
+                AudioEngine.stopEngine();
+                clearInterval(AudioEngine.musicTimer);
+            }
+        }
+
+        // --- GAME LOGIC ---
         let state = {
             active: false,
             score: 0,
@@ -402,6 +499,10 @@
         function startGame() {
             document.getElementById('start-overlay').style.display = 'none';
             state.active = true;
+            if (AudioEngine.soundOn) {
+                AudioEngine.startEngine();
+                AudioEngine.musicTimer = setInterval(() => AudioEngine.playMusicStep(), 200);
+            }
             gameLoop();
             spawnLoop();
         }
@@ -411,6 +512,7 @@
             state.distance++;
             state.energy -= 0.04;
             state.speedMult = 1 + (state.distance / 5000);
+            AudioEngine.updateEngine(state.speedMult);
             updateEnvironment();
             if (state.energy <= 0) endGame();
             updateUI();
@@ -423,6 +525,7 @@
                 state.night = true;
                 document.body.classList.add('night-mode');
                 el.fog.style.opacity = '1';
+                AudioEngine.playSFX(200, 'square', 0.5, 100); // Гул ночи
             } else if (cycle === 0 && state.night) {
                 state.night = false;
                 document.body.classList.remove('night-mode');
@@ -474,8 +577,9 @@
             const moveObj = () => {
                 if (!state.active) { obj.remove(); return; }
                 if (state.magnet > 0 && (type === '⭐' || type === '🍭')) {
-                    const dx = state.playerX - parseFloat(obj.style.left);
-                    obj.style.left = (parseFloat(obj.style.left) + dx * 0.1) + '%';
+                    const lPos = parseFloat(obj.style.left);
+                    const dx = state.playerX - lPos;
+                    obj.style.left = (lPos + dx * 0.1) + '%';
                 }
                 top += currentObjSpeed;
                 obj.style.top = top + 'px';
@@ -493,22 +597,32 @@
             if (type === '⭐') {
                 state.combo++;
                 state.score += 10 * Math.min(5, state.combo);
+                AudioEngine.playSFX(600 + (state.combo * 50), 'sine', 0.1, 800);
                 flashEffect('#ffdf6b');
             } else if (type === '🍭') {
                 state.energy = Math.min(100, state.energy + 10);
+                AudioEngine.playSFX(400, 'sine', 0.2, 600);
                 flashEffect('#2ecc71');
             } else if (type === '🚧' || type === '🚓') {
-                if (state.shield) { state.shield = false; flashEffect('#3498db'); }
-                else {
+                if (state.shield) {
+                    state.shield = false;
+                    AudioEngine.playSFX(200, 'square', 0.3, 50);
+                    flashEffect('#3498db');
+                } else {
                     state.energy -= 25;
                     state.combo = 0;
                     document.body.classList.add('shake');
                     setTimeout(() => document.body.classList.remove('shake'), 500);
+                    AudioEngine.playCrash();
                     flashEffect('#e74c3c');
                 }
-            } else if (type === '🛡️') { state.shield = true; flashEffect('#3498db'); }
-            else if (type === '🧲') {
+            } else if (type === '🛡️') {
+                state.shield = true;
+                AudioEngine.playSFX(300, 'sawtooth', 0.4, 600);
+                flashEffect('#3498db');
+            } else if (type === '🧲') {
                 state.magnet = 500;
+                AudioEngine.playSFX(200, 'sine', 0.5, 1000);
                 flashEffect('#9b59b6');
                 const magTimer = setInterval(() => {
                     state.magnet--;
@@ -525,16 +639,19 @@
 
         function endGame() {
             state.active = false;
+            AudioEngine.stopEngine();
+            clearInterval(AudioEngine.musicTimer);
             document.body.classList.remove('night-mode');
             document.body.innerHTML = `
                 <div class="overlay" style="background: #ff4757">
                     <h1 style="color:white; font-size:3rem;">МЫ ПРИЕХАЛИ! 💥</h1>
-                    <div style="font-size: 5rem;">🍦</div>
+                    <div style="font-size: 5rem;">🚜</div>
                     <h2 style="color:white">Твой счёт: ${Math.floor(state.score)}</h2>
                     <p style="color:white; font-size:1.2rem;">Дистанция: ${Math.floor(state.distance)}м</p>
                     <button class="btn-big" onclick="location.reload()">ЕЩЁ РАЗ! 🚗💨</button>
                 </div>
             `;
+            if (AudioEngine.soundOn) AudioEngine.playSFX(100, 'sawtooth', 1, 50);
         }
     </script>
 </body>
