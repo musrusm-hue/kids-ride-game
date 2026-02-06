@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Веселая поездка: MUSIC & SOUNDS</title>
+    <title>Kids Ride: World Tour EXTREME</title>
     <style>
         :root {
             --sky: #7ad8d0;
@@ -41,6 +41,24 @@
             background: var(--sky);
             overflow: hidden;
             transition: background 3s ease;
+        }
+
+        /* ПАРАЛЛАКС ОБЛАКА */
+        .cloud {
+            position: absolute;
+            font-size: 5rem;
+            opacity: 0.6;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        /* ДЕКОРАЦИИ ПО БОКАМ */
+        .scenery {
+            position: absolute;
+            font-size: 4rem;
+            z-index: 10;
+            pointer-events: none;
+            transition: transform 0.5s;
         }
 
         @keyframes shake {
@@ -102,6 +120,7 @@
             background: var(--road);
             border-left: 8px solid var(--white);
             border-right: 8px solid var(--white);
+            z-index: 20;
         }
 
         #road::after {
@@ -146,7 +165,21 @@
         #player.shielded {
             outline: 6px solid #3498db;
             outline-offset: 4px;
-            box-shadow: 0 0 30px #3498db;
+            box-shadow: 0 0 40px #3498db;
+        }
+
+        #player.fever {
+            animation: fever-rainbow 0.5s linear infinite;
+        }
+
+        @keyframes fever-rainbow {
+            0% {
+                filter: hue-rotate(0deg) brightness(1.2);
+            }
+
+            100% {
+                filter: hue-rotate(360deg) brightness(1.2);
+            }
         }
 
         #player-window {
@@ -193,22 +226,13 @@
             filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.2));
         }
 
-        .police {
-            font-size: 3.5rem;
-            z-index: 60;
-        }
-
-        #fog {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 40%;
-            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.8), transparent);
+        .particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
             pointer-events: none;
-            z-index: 500;
-            opacity: 0;
-            transition: opacity 2s;
+            z-index: 200;
         }
 
         #hud {
@@ -264,6 +288,7 @@
             border-radius: 20px;
             border: 4px solid var(--white);
             overflow: hidden;
+            z-index: 1000;
         }
 
         #energy-fill {
@@ -329,7 +354,7 @@
     </div>
 
     <div id="game-stage">
-        <div id="fog"></div>
+        <!-- Декорации будут спавниться здесь -->
         <div id="road"></div>
         <div id="player">
             <div id="combo-tag">COMBO x2!</div>
@@ -345,13 +370,13 @@
     </div>
 
     <div id="start-overlay" class="overlay">
-        <h1 style="font-size: 3rem; color: #fff; text-shadow: 0 5px 0 rgba(0,0,0,0.1);">SOUND & TRACKS! 🎶</h1>
+        <h1 style="font-size: 3rem; color: #fff; text-shadow: 0 5px 0 rgba(0,0,0,0.1);">WORLD TOUR EXTREME! 🌍</h1>
         <img src="дети.jpeg"
             style="width: 150px; height: 150px; border-radius: 50%; border: 8px solid #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
         <p style="color: #fff; font-size: 1.5rem; margin-top: 20px;">
-            Новые звуки мотора! 🔊<br>
-            Веселая музыка! 🎹<br>
-            Газуй по полной! 🔥
+            Путешествуй по мирам! 🏜️🏙️🌲<br>
+            Собирай комбо для FEVER! ✨<br>
+            Самая красочная поездка! 🌈
         </p>
         <button class="btn-big" onclick="startGame()">ГОНКА! 🏁</button>
     </div>
@@ -361,13 +386,7 @@
     <script>
         // --- AUDIO ENGINE ---
         const AudioEngine = {
-            ctx: null,
-            master: null,
-            soundOn: true,
-            engineOsc: null,
-            engineGain: null,
-            musicTimer: null,
-
+            ctx: null, master: null, soundOn: true, engineOsc: null, engineGain: null, musicTimer: null,
             init() {
                 if (this.ctx) return;
                 this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -375,7 +394,6 @@
                 this.master.connect(this.ctx.destination);
                 this.master.gain.value = 0.5;
             },
-
             playSFX(freq, type = 'sine', duration = 0.1, slide = 0) {
                 if (!this.soundOn || !this.ctx) return;
                 const osc = this.ctx.createOscillator();
@@ -385,12 +403,9 @@
                 if (slide) osc.frequency.exponentialRampToValueAtTime(slide, this.ctx.currentTime + duration);
                 g.gain.setValueAtTime(0.3, this.ctx.currentTime);
                 g.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-                osc.connect(g);
-                g.connect(this.master);
-                osc.start();
-                osc.stop(this.ctx.currentTime + duration);
+                osc.connect(g); g.connect(this.master);
+                osc.start(); osc.stop(this.ctx.currentTime + duration);
             },
-
             playCrash() {
                 if (!this.soundOn || !this.ctx) return;
                 const bufferSize = this.ctx.sampleRate * 0.2;
@@ -400,38 +415,26 @@
                 const noise = this.ctx.createBufferSource();
                 noise.buffer = buffer;
                 const filter = this.ctx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.value = 400;
-                noise.connect(filter);
-                filter.connect(this.master);
+                filter.type = 'lowpass'; filter.frequency.value = 400;
+                noise.connect(filter); filter.connect(this.master);
                 noise.start();
             },
-
             startEngine() {
                 if (!this.soundOn || !this.ctx || this.engineOsc) return;
                 this.engineOsc = this.ctx.createOscillator();
                 this.engineOsc.type = 'triangle';
                 this.engineGain = this.ctx.createGain();
                 this.engineGain.gain.value = 0.05;
-                this.engineOsc.connect(this.engineGain);
-                this.engineGain.connect(this.master);
+                this.engineOsc.connect(this.engineGain); this.engineGain.connect(this.master);
                 this.engineOsc.start();
             },
-
-            updateEngine(speedMult) {
-                if (this.engineOsc) {
-                    this.engineOsc.frequency.setTargetAtTime(40 + (speedMult * 20), this.ctx.currentTime, 0.1);
-                }
-            },
-
-            stopEngine() {
-                if (this.engineOsc) { this.engineOsc.stop(); this.engineOsc = null; }
-            },
-
+            updateEngine(speedMult) { if (this.engineOsc) this.engineOsc.frequency.setTargetAtTime(40 + (speedMult * 20), this.ctx.currentTime, 0.1); },
+            stopEngine() { if (this.engineOsc) { this.engineOsc.stop(); this.engineOsc = null; } },
             playMusicStep() {
-                const notes = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00];
+                const fever = state.combo >= 10;
+                const notes = fever ? [392.00, 440.00, 493.88, 523.25] : [261.63, 293.66, 329.63, 349.23, 392.00, 440.00];
                 const note = notes[Math.floor(Math.random() * notes.length)];
-                this.playSFX(note, 'square', 0.15, note / 2);
+                this.playSFX(note, fever ? 'sawtooth' : 'square', fever ? 0.1 : 0.15, note / (fever ? 1.2 : 2));
             }
         };
 
@@ -441,45 +444,31 @@
             document.getElementById('sound-btn').textContent = AudioEngine.soundOn ? '🔉' : '🔇';
             if (AudioEngine.soundOn && state.active) {
                 AudioEngine.startEngine();
-                AudioEngine.musicTimer = setInterval(() => AudioEngine.playMusicStep(), 200);
+                if (!AudioEngine.musicTimer) AudioEngine.musicTimer = setInterval(() => AudioEngine.playMusicStep(), 200);
             } else {
                 AudioEngine.stopEngine();
-                clearInterval(AudioEngine.musicTimer);
+                clearInterval(AudioEngine.musicTimer); AudioEngine.musicTimer = null;
             }
         }
 
         // --- GAME LOGIC ---
         let state = {
-            active: false,
-            score: 0,
-            energy: 100,
-            baseSpeed: 6,
-            speedMult: 1,
-            playerX: 50,
-            distance: 0,
-            combo: 0,
-            shield: false,
-            magnet: 0
+            active: false, score: 0, energy: 100, baseSpeed: 6, speedMult: 1, playerX: 50,
+            distance: 0, combo: 0, shield: false, magnet: 0, biome: 'forest'
         };
 
         const el = {
-            stage: document.getElementById('game-stage'),
-            player: document.getElementById('player'),
-            score: document.getElementById('val-score'),
-            energy: document.getElementById('val-energy'),
-            energyFill: document.getElementById('energy-fill'),
-            flash: document.getElementById('flash-screen'),
-            speed: document.getElementById('val-speed'),
-            combo: document.getElementById('combo-tag'),
-            fog: document.getElementById('fog')
+            stage: document.getElementById('game-stage'), player: document.getElementById('player'),
+            score: document.getElementById('val-score'), energy: document.getElementById('val-energy'),
+            energyFill: document.getElementById('energy-fill'), flash: document.getElementById('flash-screen'),
+            speed: document.getElementById('val-speed'), combo: document.getElementById('combo-tag')
         };
 
         let isDragging = false;
         function updatePlayerPos(clientX) {
             if (!state.active) return;
             const stageRect = el.stage.getBoundingClientRect();
-            let xPercent = ((clientX - stageRect.left) / stageRect.width) * 100;
-            state.playerX = Math.max(15, Math.min(85, xPercent));
+            state.playerX = Math.max(15, Math.min(85, ((clientX - stageRect.left) / stageRect.width) * 100));
             el.player.style.left = state.playerX + '%';
         }
 
@@ -494,11 +483,10 @@
             document.getElementById('start-overlay').style.display = 'none';
             state.active = true;
             if (AudioEngine.soundOn) {
-                AudioEngine.startEngine();
+                AudioEngine.init(); AudioEngine.startEngine();
                 AudioEngine.musicTimer = setInterval(() => AudioEngine.playMusicStep(), 200);
             }
-            gameLoop();
-            spawnLoop();
+            gameLoop(); spawnLoop(); sceneryLoop(); cloudLoop();
         }
 
         function gameLoop() {
@@ -507,16 +495,24 @@
             state.energy -= 0.04;
             state.speedMult = 1 + (state.distance / 5000);
             AudioEngine.updateEngine(state.speedMult);
-            updateEnvironment();
-            if (state.energy <= 0) endGame();
-            updateUI();
+            updateEnvironment(); updateUI();
             requestAnimationFrame(gameLoop);
         }
 
         function updateEnvironment() {
-            const worldIndex = Math.floor(state.distance / 1000) % 4;
-            const colors = ['#7ad8d0', '#ff9ecd', '#ffdf6b', '#a9e4ef'];
-            el.stage.style.background = colors[worldIndex];
+            // Смена биомов каждые 2000м
+            const worldStep = Math.floor(state.distance / 2000) % 3;
+            const biomes = ['forest', 'desert', 'cyber'];
+            state.biome = biomes[worldStep];
+
+            const colors = {
+                forest: ['#7ad8d0', '#6ebfb7'], // Голубой и бирюза
+                desert: ['#f39c12', '#e67e22'], // Оранжевый
+                cyber: ['#2c3e50', '#1c2833']   // Темный
+            };
+            el.stage.style.background = colors[state.biome][0];
+            document.documentElement.style.setProperty('--sky', colors[state.biome][0]);
+            document.documentElement.style.setProperty('--road', state.biome === 'cyber' ? '#34495e' : '#95a5a6');
         }
 
         function updateUI() {
@@ -524,27 +520,103 @@
             el.energy.textContent = Math.ceil(state.energy);
             el.speed.textContent = state.speedMult.toFixed(1);
             el.energyFill.style.width = state.energy + '%';
-            if (state.energy < 30) el.energyFill.style.background = '#e74c3c';
-            else el.energyFill.style.background = '#2ecc71';
-            if (state.shield) el.player.classList.add('shielded');
-            else el.player.classList.remove('shielded');
+            el.energyFill.style.background = state.energy < 30 ? '#e74c3c' : '#2ecc71';
+
+            if (state.shield) el.player.classList.add('shielded'); else el.player.classList.remove('shielded');
+            if (state.combo >= 10) el.player.classList.add('fever'); else el.player.classList.remove('fever');
+
             if (state.combo > 2) {
                 el.combo.style.display = 'block';
-                el.combo.textContent = `COMBO x${state.combo}!`;
-            } else { el.combo.style.display = 'none'; }
+                el.combo.textContent = `COMBO x${state.combo}! ${state.combo >= 10 ? '🔥FEVER!🔥' : ''}`;
+            } else el.combo.style.display = 'none';
         }
 
         function spawnLoop() {
             if (!state.active) return;
             const roll = Math.random();
-            if (roll < 0.4) createObj('⭐');
-            else if (roll < 0.6) createObj('🍭');
-            else if (roll < 0.8) createObj('🚧');
-            else if (roll < 0.9) createObj('🚓');
-            else if (roll < 0.95) createObj('🛡️');
+            if (roll < 0.45) createObj('⭐');
+            else if (roll < 0.65) createObj('🍭');
+            else if (roll < 0.85) createObj('🚧');
+            else if (roll < 0.92) createObj('🚓');
+            else if (roll < 0.96) createObj('🛡️');
             else createObj('🧲');
-            const delay = Math.max(250, 1000 / state.speedMult);
-            setTimeout(spawnLoop, delay);
+            setTimeout(spawnLoop, Math.max(200, 1000 / state.speedMult));
+        }
+
+        function sceneryLoop() {
+            if (!state.active) return;
+            createScenery();
+            setTimeout(sceneryLoop, Math.max(300, 1500 / state.speedMult));
+        }
+
+        function cloudLoop() {
+            if (!state.active) return;
+            createCloud();
+            setTimeout(cloudLoop, 3000 + Math.random() * 5000);
+        }
+
+        function createParticles(x, y, color) {
+            for (let i = 0; i < 12; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                p.style.left = x + '%';
+                p.style.top = y + 'px';
+                p.style.background = color;
+                el.stage.appendChild(p);
+
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 5;
+                let vx = Math.cos(angle) * speed;
+                let vy = Math.sin(angle) * speed;
+                let life = 1;
+
+                const moveP = () => {
+                    life -= 0.02;
+                    if (life <= 0) { p.remove(); return; }
+                    p.style.left = (parseFloat(p.style.left) + vx * 0.1) + '%';
+                    p.style.top = (parseFloat(p.style.top) + vy) + 'px';
+                    p.style.opacity = life;
+                    requestAnimationFrame(moveP);
+                };
+                requestAnimationFrame(moveP);
+            }
+        }
+
+        function createScenery() {
+            const side = Math.random() < 0.5 ? 'left' : 'right';
+            const s = document.createElement('div');
+            s.className = 'scenery';
+            const items = { forest: ['🌲', '🌳', '🌸'], desert: ['🌵', '🏜️', '🪨'], cyber: ['🏙️', '🗼', '🚥'] };
+            s.innerHTML = items[state.biome][Math.floor(Math.random() * 3)];
+            s.style.left = side === 'left' ? (Math.random() * 8) + '%' : (92 + Math.random() * 8) + '%';
+            s.style.top = '-100px';
+            el.stage.appendChild(s);
+
+            let top = -100;
+            const moveS = () => {
+                if (!state.active) { s.remove(); return; }
+                top += 6 * state.speedMult;
+                s.style.top = top + 'px';
+                if (top < window.innerHeight + 100) requestAnimationFrame(moveS); else s.remove();
+            };
+            requestAnimationFrame(moveS);
+        }
+
+        function createCloud() {
+            const c = document.createElement('div');
+            c.className = 'cloud';
+            c.innerHTML = '☁️';
+            c.style.left = '-150px';
+            c.style.top = (Math.random() * 40) + '%';
+            el.stage.appendChild(c);
+            let left = -150;
+            const moveC = () => {
+                if (!state.active) { c.remove(); return; }
+                left += (1 + Math.random());
+                c.style.left = left + 'px';
+                if (left < window.innerWidth + 150) requestAnimationFrame(moveC); else c.remove();
+            };
+            requestAnimationFrame(moveC);
         }
 
         function createObj(type) {
@@ -556,19 +628,16 @@
             obj.style.top = '-100px';
             el.stage.appendChild(obj);
             let top = -100;
-            const currentObjSpeed = (type === '🚓' ? 12 : 6) * state.speedMult;
+            const speed = (type === '🚓' ? 12 : 6) * state.speedMult;
             const moveObj = () => {
                 if (!state.active) { obj.remove(); return; }
                 if (state.magnet > 0 && (type === '⭐' || type === '🍭')) {
                     const lPos = parseFloat(obj.style.left);
-                    const dx = state.playerX - lPos;
-                    obj.style.left = (lPos + dx * 0.1) + '%';
+                    obj.style.left = (lPos + (state.playerX - lPos) * 0.15) + '%';
                 }
-                top += currentObjSpeed;
-                obj.style.top = top + 'px';
+                top += speed; obj.style.top = top + 'px';
                 if (top > window.innerHeight * 0.7 && top < window.innerHeight * 0.88) {
-                    const dist = Math.abs(parseFloat(obj.style.left) - state.playerX);
-                    if (dist < 12) { collect(type); obj.remove(); return; }
+                    if (Math.abs(parseFloat(obj.style.left) - state.playerX) < 12) { collect(type, parseFloat(obj.style.left)); obj.remove(); return; }
                 }
                 if (top < window.innerHeight + 100) requestAnimationFrame(moveObj);
                 else { if (type === '⭐') state.combo = 0; obj.remove(); }
@@ -576,62 +645,53 @@
             requestAnimationFrame(moveObj);
         }
 
-        function collect(type) {
+        function collect(type, xPos) {
+            const yPos = window.innerHeight * 0.8;
             if (type === '⭐') {
                 state.combo++;
-                state.score += 10 * Math.min(5, state.combo);
+                state.score += 10 * Math.min(5, state.combo) * (state.combo >= 10 ? 2 : 1);
                 AudioEngine.playSFX(600 + (state.combo * 50), 'sine', 0.1, 800);
+                createParticles(xPos, yPos, '#f1c40f');
                 flashEffect('#ffdf6b');
             } else if (type === '🍭') {
                 state.energy = Math.min(100, state.energy + 10);
                 AudioEngine.playSFX(400, 'sine', 0.2, 600);
+                createParticles(xPos, yPos, '#2ecc71');
                 flashEffect('#2ecc71');
             } else if (type === '🚧' || type === '🚓') {
                 if (state.shield) {
-                    state.shield = false;
-                    AudioEngine.playSFX(200, 'square', 0.3, 50);
-                    flashEffect('#3498db');
+                    state.shield = false; AudioEngine.playSFX(200, 'square', 0.3, 50);
+                    createParticles(xPos, yPos, '#3498db');
                 } else {
-                    state.energy -= 25;
-                    state.combo = 0;
-                    document.body.classList.add('shake');
-                    setTimeout(() => document.body.classList.remove('shake'), 500);
-                    AudioEngine.playCrash();
+                    state.energy -= 25; state.combo = 0;
+                    document.body.classList.add('shake'); setTimeout(() => document.body.classList.remove('shake'), 500);
+                    AudioEngine.playCrash(); createParticles(xPos, yPos, '#e74c3c');
                     flashEffect('#e74c3c');
                 }
             } else if (type === '🛡️') {
-                state.shield = true;
-                AudioEngine.playSFX(300, 'sawtooth', 0.4, 600);
-                flashEffect('#3498db');
+                state.shield = true; AudioEngine.playSFX(300, 'sawtooth', 0.4, 600);
+                createParticles(xPos, yPos, '#3498db');
             } else if (type === '🧲') {
-                state.magnet = 500;
-                AudioEngine.playSFX(200, 'sine', 0.5, 1000);
-                flashEffect('#9b59b6');
-                const magTimer = setInterval(() => {
-                    state.magnet--;
-                    if (state.magnet <= 0) clearInterval(magTimer);
-                }, 20);
+                state.magnet = 500; AudioEngine.playSFX(200, 'sine', 0.5, 1000);
+                createParticles(xPos, yPos, '#9b59b6');
+                const magTimer = setInterval(() => { state.magnet--; if (state.magnet <= 0) clearInterval(magTimer); }, 20);
             }
         }
 
         function flashEffect(color) {
-            el.flash.style.background = color;
-            el.flash.style.opacity = '0.3';
+            el.flash.style.background = color; el.flash.style.opacity = '0.3';
             setTimeout(() => el.flash.style.opacity = '0', 100);
         }
 
         function endGame() {
-            state.active = false;
-            AudioEngine.stopEngine();
-            clearInterval(AudioEngine.musicTimer);
-            document.body.classList.remove('night-mode');
+            state.active = false; AudioEngine.stopEngine(); clearInterval(AudioEngine.musicTimer);
             document.body.innerHTML = `
                 <div class="overlay" style="background: #ff4757">
-                    <h1 style="color:white; font-size:3rem;">МЫ ПРИЕХАЛИ! 💥</h1>
-                    <div style="font-size: 5rem;">🚜</div>
+                    <h1 style="color:white; font-size:3rem;">ТУР ОКОНЧЕН! 🏁</h1>
+                    <div style="font-size: 5rem;">🏆</div>
                     <h2 style="color:white">Твой счёт: ${Math.floor(state.score)}</h2>
                     <p style="color:white; font-size:1.2rem;">Дистанция: ${Math.floor(state.distance)}м</p>
-                    <button class="btn-big" onclick="location.reload()">ЕЩЁ РАЗ! 🚗💨</button>
+                    <button class="btn-big" onclick="location.reload()">НОВЫЙ ТУР! 🚀</button>
                 </div>
             `;
             if (AudioEngine.soundOn) AudioEngine.playSFX(100, 'sawtooth', 1, 50);
