@@ -87,13 +87,13 @@
             transform: translateX(-50%);
             z-index: 100;
             box-shadow: 0 10px 0 #cc7eab, 0 20px 30px rgba(0, 0, 0, 0.2);
-            transition: left 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            /* Очень плавное движение */
+            /* Убрали плавный переход, чтобы машина мгновенно слушалась пальца */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
             padding-top: 15px;
+            will-change: left;
         }
 
         /* Окошко с фото детей */
@@ -145,7 +145,6 @@
             transform: translate(-50%, -50%);
             z-index: 50;
             filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.2));
-            transition: transform 0.2s;
         }
 
         /* ИНТЕРФЕЙС */
@@ -165,7 +164,7 @@
             border-radius: 30px;
             font-weight: 900;
             font-size: 1.5rem;
-            box-shadow: 0 6px 0 var(--shadow);
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.1);
             display: flex;
             align-items: center;
             gap: 10px;
@@ -256,10 +255,6 @@
             </div>
             <div style="font-size: 0.8rem; font-weight: bold; color: white; margin-top: 2px;">VROOM!</div>
         </div>
-
-        <div id="left-zone" style="position:absolute; width:50%; height:100%; left:0; z-index:1500;">
-        </div>
-        <div id="right-zone" style="position:absolute; width:50%; height:100%; right:0; z-index:1500;"></div>
     </div>
 
     <div id="energy-bar">
@@ -270,8 +265,8 @@
         <h1 style="font-size: 3rem; color: #fff; text-shadow: 0 5px 0 rgba(0,0,0,0.1);">ДЕТСКАЯ ПОЕЗДКА!</h1>
         <img src="дети.jpeg"
             style="width: 150px; height: 150px; border-radius: 50%; border: 8px solid #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
-        <p style="color: #fff; font-size: 1.5rem; margin-top: 20px;">Собирай конфеты 🍭 и звезды ⭐!<br>Поворачивай влево
-            и вправо!</p>
+        <p style="color: #fff; font-size: 1.5rem; margin-top: 20px;">Вводи пальцем по экрану! 🚗<br>Собирай конфеты 🍭 и
+            звезды ⭐!</p>
         <button class="btn-big" onclick="startGame()">ПОЕХАЛИ! 🚗</button>
     </div>
 
@@ -283,7 +278,7 @@
             score: 0,
             energy: 100,
             speed: 6,
-            lane: 1,
+            playerX: 50, // Позиция в процентах
             distance: 0
         };
 
@@ -296,31 +291,42 @@
             flash: document.getElementById('flash-screen')
         };
 
-        function move(dir) {
+        // DRAG CONTROL
+        let isDragging = false;
+
+        function updatePlayerPos(clientX) {
             if (!state.active) return;
-            state.lane = Math.max(0, Math.min(2, state.lane + dir));
-            el.player.style.left = [18, 50, 82][state.lane] + '%';
+            const stageRect = el.stage.getBoundingClientRect();
+            let xPercent = ((clientX - stageRect.left) / stageRect.width) * 100;
+
+            // Ограничение по дороге (от 15% до 85%)
+            state.playerX = Math.max(15, Math.min(85, xPercent));
+            el.player.style.left = state.playerX + '%';
         }
 
-        // TOUCH HANDLING
-        const leftZone = document.getElementById('left-zone');
-        const rightZone = document.getElementById('right-zone');
+        // Mouse Events
+        el.stage.addEventListener('mousedown', (e) => { isDragging = true; updatePlayerPos(e.clientX); });
+        window.addEventListener('mousemove', (e) => { if (isDragging) updatePlayerPos(e.clientX); });
+        window.addEventListener('mouseup', () => { isDragging = false; });
 
-        const handleTouch = (dir) => (e) => {
-            e.preventDefault();
-            move(dir);
-        };
+        // Touch Events
+        el.stage.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            updatePlayerPos(e.touches[0].clientX);
+        }, { passive: false });
 
-        leftZone.addEventListener('touchstart', handleTouch(-1), { passive: false });
-        rightZone.addEventListener('touchstart', handleTouch(1), { passive: false });
+        el.stage.addEventListener('touchmove', (e) => {
+            if (isDragging) {
+                e.preventDefault();
+                updatePlayerPos(e.touches[0].clientX);
+            }
+        }, { passive: false });
 
-        // Mouse support for testing
-        leftZone.addEventListener('mousedown', (e) => { move(-1); });
-        rightZone.addEventListener('mousedown', (e) => { move(1); });
+        el.stage.addEventListener('touchend', () => { isDragging = false; });
 
         window.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft') move(-1);
-            if (e.key === 'ArrowRight') move(1);
+            if (e.key === 'ArrowLeft') { state.playerX = Math.max(15, state.playerX - 5); el.player.style.left = state.playerX + '%'; }
+            if (e.key === 'ArrowRight') { state.playerX = Math.min(85, state.playerX + 5); el.player.style.left = state.playerX + '%'; }
         });
 
         function startGame() {
@@ -365,8 +371,8 @@
             const roll = Math.random();
             if (roll < 0.6) createObj('⭐');
             else if (roll < 0.8) createObj('🍭');
-            else if (roll < 0.95) createObj('🚧'); // Конус
-            else createObj('🎈'); // Бонус-прыжок или просто приз
+            else if (roll < 0.95) createObj('🚧');
+            else createObj('🎈');
 
             setTimeout(spawnLoop, Math.max(400, 1200 - (state.distance / 100)));
         }
@@ -375,8 +381,8 @@
             const obj = document.createElement('div');
             obj.className = 'game-object';
             obj.innerHTML = type;
-            const lane = Math.floor(Math.random() * 3);
-            obj.style.left = [18, 50, 82][lane] + '%';
+            const startX = 15 + Math.random() * 70; // Случайная позиция по ширине дороги
+            obj.style.left = startX + '%';
             obj.style.top = '-100px';
             el.stage.appendChild(obj);
 
@@ -386,9 +392,11 @@
                 top += state.speed;
                 obj.style.top = top + 'px';
 
-                // Коллизия (Машина крупнее, ловим легче)
+                // КОЛЛИЗИЯ ПО КООРДИНАТАМ
                 if (top > window.innerHeight * 0.7 && top < window.innerHeight * 0.88) {
-                    if (lane === state.lane) {
+                    // Проверяем расстояние по X (в процентах)
+                    const dist = Math.abs(startX - state.playerX);
+                    if (dist < 12) { // Если подошли ближе чем на 12% ширины
                         collect(type);
                         obj.remove();
                         return;
