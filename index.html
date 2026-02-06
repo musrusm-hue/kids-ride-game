@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Веселая поездка: Kids Ride</title>
+    <title>Веселая поездка: EXTREME</title>
     <style>
         :root {
             --sky: #7ad8d0;
@@ -32,6 +32,11 @@
             position: fixed;
             width: 100%;
             touch-action: none;
+            transition: filter 2s ease;
+        }
+
+        .night-mode {
+            filter: brightness(0.4) contrast(1.2);
         }
 
         #game-stage {
@@ -43,7 +48,56 @@
             transition: background 3s ease;
         }
 
-        /* ДОРОГА */
+        @keyframes shake {
+            0% {
+                transform: translate(1px, 1px) rotate(0deg);
+            }
+
+            10% {
+                transform: translate(-1px, -2px) rotate(-1deg);
+            }
+
+            20% {
+                transform: translate(-3px, 0px) rotate(1deg);
+            }
+
+            30% {
+                transform: translate(3px, 2px) rotate(0deg);
+            }
+
+            40% {
+                transform: translate(1px, -1px) rotate(1deg);
+            }
+
+            50% {
+                transform: translate(-1px, 2px) rotate(-1deg);
+            }
+
+            60% {
+                transform: translate(-3px, 1px) rotate(0deg);
+            }
+
+            70% {
+                transform: translate(3px, 1px) rotate(-1deg);
+            }
+
+            80% {
+                transform: translate(-1px, -1px) rotate(1deg);
+            }
+
+            90% {
+                transform: translate(1px, 2px) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(1px, -2px) rotate(-1deg);
+            }
+        }
+
+        .shake {
+            animation: shake 0.5s;
+        }
+
         #road {
             position: absolute;
             left: 50%;
@@ -75,7 +129,6 @@
             }
         }
 
-        /* МАШИНА С ДЕТЬМИ */
         #player {
             position: absolute;
             bottom: 15%;
@@ -87,7 +140,6 @@
             transform: translateX(-50%);
             z-index: 100;
             box-shadow: 0 10px 0 #cc7eab, 0 20px 30px rgba(0, 0, 0, 0.2);
-            /* Убрали плавный переход, чтобы машина мгновенно слушалась пальца */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -96,7 +148,12 @@
             will-change: left;
         }
 
-        /* Окошко с фото детей */
+        #player.shielded {
+            outline: 6px solid #3498db;
+            outline-offset: 4px;
+            box-shadow: 0 0 30px #3498db;
+        }
+
         #player-window {
             width: 70px;
             height: 70px;
@@ -113,24 +170,11 @@
             object-fit: cover;
         }
 
-        #player::after {
-            /* Фары */
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: 10px;
-            width: 15px;
-            height: 15px;
-            background: var(--yellow);
-            border-radius: 50%;
-            box-shadow: 0 0 15px var(--yellow);
-        }
-
+        #player::after,
         #player::before {
             content: '';
             position: absolute;
             bottom: -5px;
-            right: 10px;
             width: 15px;
             height: 15px;
             background: var(--yellow);
@@ -138,7 +182,14 @@
             box-shadow: 0 0 15px var(--yellow);
         }
 
-        /* ОБЪЕКТЫ */
+        #player::after {
+            left: 10px;
+        }
+
+        #player::before {
+            right: 10px;
+        }
+
         .game-object {
             position: absolute;
             font-size: 3rem;
@@ -147,28 +198,58 @@
             filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.2));
         }
 
-        /* ИНТЕРФЕЙС */
+        .police {
+            font-size: 3.5rem;
+            z-index: 60;
+        }
+
+        #fog {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 40%;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.8), transparent);
+            pointer-events: none;
+            z-index: 500;
+            opacity: 0;
+            transition: opacity 2s;
+        }
+
         #hud {
             position: fixed;
             top: 20px;
             width: 100%;
             display: flex;
             justify-content: center;
-            gap: 20px;
+            gap: 15px;
             z-index: 1000;
         }
 
         .hud-item {
             background: var(--white);
-            padding: 10px 25px;
+            padding: 8px 15px;
             border-radius: 30px;
             font-weight: 900;
-            font-size: 1.5rem;
-            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.1);
+            font-size: 1.2rem;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             color: #ff6b81;
+        }
+
+        #combo-tag {
+            position: absolute;
+            top: -45px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #f1c40f;
+            text-shadow: 0 2px 0 #000;
+            display: none;
+            white-space: nowrap;
         }
 
         #energy-bar {
@@ -191,7 +272,6 @@
             transition: width 0.3s, background 0.5s;
         }
 
-        /* ВСПЫШКА */
         .flash {
             position: fixed;
             top: 0;
@@ -204,7 +284,6 @@
             transition: opacity 0.1s;
         }
 
-        /* ЭКРАН START/END */
         .overlay {
             position: fixed;
             top: 0;
@@ -241,15 +320,17 @@
 </head>
 
 <body>
-
     <div id="hud">
         <div class="hud-item">⭐ <span id="val-score">0</span></div>
         <div class="hud-item">🍭 <span id="val-energy">100</span></div>
+        <div class="hud-item">🚀 x<span id="val-speed">1.0</span></div>
     </div>
 
     <div id="game-stage">
+        <div id="fog"></div>
         <div id="road"></div>
         <div id="player">
+            <div id="combo-tag">COMBO x2!</div>
             <div id="player-window">
                 <img src="дети.jpeg" alt="Дети">
             </div>
@@ -262,12 +343,15 @@
     </div>
 
     <div id="start-overlay" class="overlay">
-        <h1 style="font-size: 3rem; color: #fff; text-shadow: 0 5px 0 rgba(0,0,0,0.1);">ДЕТСКАЯ ПОЕЗДКА!</h1>
+        <h1 style="font-size: 3rem; color: #fff; text-shadow: 0 5px 0 rgba(0,0,0,0.1);">KIDS RIDE: EXTREME!</h1>
         <img src="дети.jpeg"
             style="width: 150px; height: 150px; border-radius: 50%; border: 8px solid #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
-        <p style="color: #fff; font-size: 1.5rem; margin-top: 20px;">Вводи пальцем по экрану! 🚗<br>Собирай конфеты 🍭 и
-            звезды ⭐!</p>
-        <button class="btn-big" onclick="startGame()">ПОЕХАЛИ! 🚗</button>
+        <p style="color: #fff; font-size: 1.5rem; margin-top: 20px;">
+            Берегись полиции! 🚓<br>
+            Собирай щиты 🛡️ и магниты 🧲!<br>
+            Скорость растет постоянно! 🔥
+        </p>
+        <button class="btn-big" onclick="startGame()">ГОНКА! 🏁</button>
     </div>
 
     <div id="flash-screen" class="flash"></div>
@@ -277,9 +361,14 @@
             active: false,
             score: 0,
             energy: 100,
-            speed: 6,
-            playerX: 50, // Позиция в процентах
-            distance: 0
+            baseSpeed: 6,
+            speedMult: 1,
+            playerX: 50,
+            distance: 0,
+            combo: 0,
+            shield: false,
+            magnet: 0,
+            night: false
         };
 
         const el = {
@@ -288,46 +377,27 @@
             score: document.getElementById('val-score'),
             energy: document.getElementById('val-energy'),
             energyFill: document.getElementById('energy-fill'),
-            flash: document.getElementById('flash-screen')
+            flash: document.getElementById('flash-screen'),
+            speed: document.getElementById('val-speed'),
+            combo: document.getElementById('combo-tag'),
+            fog: document.getElementById('fog')
         };
 
-        // DRAG CONTROL
         let isDragging = false;
-
         function updatePlayerPos(clientX) {
             if (!state.active) return;
             const stageRect = el.stage.getBoundingClientRect();
             let xPercent = ((clientX - stageRect.left) / stageRect.width) * 100;
-
-            // Ограничение по дороге (от 15% до 85%)
             state.playerX = Math.max(15, Math.min(85, xPercent));
             el.player.style.left = state.playerX + '%';
         }
 
-        // Mouse Events
         el.stage.addEventListener('mousedown', (e) => { isDragging = true; updatePlayerPos(e.clientX); });
         window.addEventListener('mousemove', (e) => { if (isDragging) updatePlayerPos(e.clientX); });
         window.addEventListener('mouseup', () => { isDragging = false; });
-
-        // Touch Events
-        el.stage.addEventListener('touchstart', (e) => {
-            isDragging = true;
-            updatePlayerPos(e.touches[0].clientX);
-        }, { passive: false });
-
-        el.stage.addEventListener('touchmove', (e) => {
-            if (isDragging) {
-                e.preventDefault();
-                updatePlayerPos(e.touches[0].clientX);
-            }
-        }, { passive: false });
-
+        el.stage.addEventListener('touchstart', (e) => { isDragging = true; updatePlayerPos(e.touches[0].clientX); }, { passive: false });
+        el.stage.addEventListener('touchmove', (e) => { if (isDragging) { e.preventDefault(); updatePlayerPos(e.touches[0].clientX); } }, { passive: false });
         el.stage.addEventListener('touchend', () => { isDragging = false; });
-
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft') { state.playerX = Math.max(15, state.playerX - 5); el.player.style.left = state.playerX + '%'; }
-            if (e.key === 'ArrowRight') { state.playerX = Math.min(85, state.playerX + 5); el.player.style.left = state.playerX + '%'; }
-        });
 
         function startGame() {
             document.getElementById('start-overlay').style.display = 'none';
@@ -338,91 +408,112 @@
 
         function gameLoop() {
             if (!state.active) return;
-
             state.distance++;
-            state.energy -= 0.05;
-
+            state.energy -= 0.04;
+            state.speedMult = 1 + (state.distance / 5000);
+            updateEnvironment();
             if (state.energy <= 0) endGame();
-
             updateUI();
-            updateBackground();
-
             requestAnimationFrame(gameLoop);
         }
 
-        function updateUI() {
-            el.score.textContent = Math.floor(state.score);
-            el.energy.textContent = Math.ceil(state.energy);
-            el.energyFill.style.width = state.energy + '%';
-
-            if (state.energy < 30) el.energyFill.style.background = '#e74c3c';
-            else el.energyFill.style.background = '#2ecc71';
-        }
-
-        function updateBackground() {
+        function updateEnvironment() {
+            const cycle = Math.floor(state.distance / 1500) % 2;
+            if (cycle === 1 && !state.night) {
+                state.night = true;
+                document.body.classList.add('night-mode');
+                el.fog.style.opacity = '1';
+            } else if (cycle === 0 && state.night) {
+                state.night = false;
+                document.body.classList.remove('night-mode');
+                el.fog.style.opacity = '0';
+            }
             const worldIndex = Math.floor(state.distance / 1000) % 4;
             const colors = ['#7ad8d0', '#ff9ecd', '#ffdf6b', '#a9e4ef'];
             el.stage.style.background = colors[worldIndex];
         }
 
+        function updateUI() {
+            el.score.textContent = Math.floor(state.score);
+            el.energy.textContent = Math.ceil(state.energy);
+            el.speed.textContent = state.speedMult.toFixed(1);
+            el.energyFill.style.width = state.energy + '%';
+            if (state.energy < 30) el.energyFill.style.background = '#e74c3c';
+            else el.energyFill.style.background = '#2ecc71';
+            if (state.shield) el.player.classList.add('shielded');
+            else el.player.classList.remove('shielded');
+            if (state.combo > 2) {
+                el.combo.style.display = 'block';
+                el.combo.textContent = `COMBO x${state.combo}!`;
+            } else { el.combo.style.display = 'none'; }
+        }
+
         function spawnLoop() {
             if (!state.active) return;
-
             const roll = Math.random();
-            if (roll < 0.6) createObj('⭐');
-            else if (roll < 0.8) createObj('🍭');
-            else if (roll < 0.95) createObj('🚧');
-            else createObj('🎈');
-
-            setTimeout(spawnLoop, Math.max(400, 1200 - (state.distance / 100)));
+            if (roll < 0.4) createObj('⭐');
+            else if (roll < 0.6) createObj('🍭');
+            else if (roll < 0.8) createObj('🚧');
+            else if (roll < 0.9) createObj('🚓');
+            else if (roll < 0.95) createObj('🛡️');
+            else createObj('🧲');
+            const delay = Math.max(250, 1000 / state.speedMult);
+            setTimeout(spawnLoop, delay);
         }
 
         function createObj(type) {
             const obj = document.createElement('div');
-            obj.className = 'game-object';
+            obj.className = 'game-object' + (type === '🚓' ? ' police' : '');
             obj.innerHTML = type;
-            const startX = 15 + Math.random() * 70; // Случайная позиция по ширине дороги
+            const startX = 15 + Math.random() * 70;
             obj.style.left = startX + '%';
             obj.style.top = '-100px';
             el.stage.appendChild(obj);
-
             let top = -100;
+            const currentObjSpeed = (type === '🚓' ? 12 : 6) * state.speedMult;
             const moveObj = () => {
                 if (!state.active) { obj.remove(); return; }
-                top += state.speed;
-                obj.style.top = top + 'px';
-
-                // КОЛЛИЗИЯ ПО КООРДИНАТАМ
-                if (top > window.innerHeight * 0.7 && top < window.innerHeight * 0.88) {
-                    // Проверяем расстояние по X (в процентах)
-                    const dist = Math.abs(startX - state.playerX);
-                    if (dist < 12) { // Если подошли ближе чем на 12% ширины
-                        collect(type);
-                        obj.remove();
-                        return;
-                    }
+                if (state.magnet > 0 && (type === '⭐' || type === '🍭')) {
+                    const dx = state.playerX - parseFloat(obj.style.left);
+                    obj.style.left = (parseFloat(obj.style.left) + dx * 0.1) + '%';
                 }
-
+                top += currentObjSpeed;
+                obj.style.top = top + 'px';
+                if (top > window.innerHeight * 0.7 && top < window.innerHeight * 0.88) {
+                    const dist = Math.abs(parseFloat(obj.style.left) - state.playerX);
+                    if (dist < 12) { collect(type); obj.remove(); return; }
+                }
                 if (top < window.innerHeight + 100) requestAnimationFrame(moveObj);
-                else obj.remove();
+                else { if (type === '⭐') state.combo = 0; obj.remove(); }
             };
             requestAnimationFrame(moveObj);
         }
 
         function collect(type) {
             if (type === '⭐') {
-                state.score += 10;
+                state.combo++;
+                state.score += 10 * Math.min(5, state.combo);
                 flashEffect('#ffdf6b');
             } else if (type === '🍭') {
-                state.energy = Math.min(100, state.energy + 15);
+                state.energy = Math.min(100, state.energy + 10);
                 flashEffect('#2ecc71');
-            } else if (type === '🚧') {
-                state.energy -= 20;
-                state.distance = Math.max(0, state.distance - 200);
-                flashEffect('#e74c3c');
-            } else if (type === '🎈') {
-                state.score += 50;
-                flashEffect('#ff9ecd');
+            } else if (type === '🚧' || type === '🚓') {
+                if (state.shield) { state.shield = false; flashEffect('#3498db'); }
+                else {
+                    state.energy -= 25;
+                    state.combo = 0;
+                    document.body.classList.add('shake');
+                    setTimeout(() => document.body.classList.remove('shake'), 500);
+                    flashEffect('#e74c3c');
+                }
+            } else if (type === '🛡️') { state.shield = true; flashEffect('#3498db'); }
+            else if (type === '🧲') {
+                state.magnet = 500;
+                flashEffect('#9b59b6');
+                const magTimer = setInterval(() => {
+                    state.magnet--;
+                    if (state.magnet <= 0) clearInterval(magTimer);
+                }, 20);
             }
         }
 
@@ -434,12 +525,14 @@
 
         function endGame() {
             state.active = false;
+            document.body.classList.remove('night-mode');
             document.body.innerHTML = `
-                <div class="overlay" style="background: #ff9ecd">
-                    <h1 style="color:white; font-size:3rem;">ПОЕЗДКА ОКОНЧЕНА!</h1>
+                <div class="overlay" style="background: #ff4757">
+                    <h1 style="color:white; font-size:3rem;">МЫ ПРИЕХАЛИ! 💥</h1>
                     <div style="font-size: 5rem;">🍦</div>
-                    <h2>Твой счёт: ${Math.floor(state.score)}</h2>
-                    <button class="btn-big" onclick="location.reload()">ЕЩЁ РАЗ! 🚗</button>
+                    <h2 style="color:white">Твой счёт: ${Math.floor(state.score)}</h2>
+                    <p style="color:white; font-size:1.2rem;">Дистанция: ${Math.floor(state.distance)}м</p>
+                    <button class="btn-big" onclick="location.reload()">ЕЩЁ РАЗ! 🚗💨</button>
                 </div>
             `;
         }
