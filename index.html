@@ -32,11 +32,6 @@
             position: fixed;
             width: 100%;
             touch-action: none;
-            transition: filter 2s ease;
-        }
-
-        .night-mode {
-            filter: brightness(0.4) contrast(1.2);
         }
 
         #game-stage {
@@ -368,7 +363,7 @@
         const AudioEngine = {
             ctx: null,
             master: null,
-            soundOn: false,
+            soundOn: true,
             engineOsc: null,
             engineGain: null,
             musicTimer: null,
@@ -464,8 +459,7 @@
             distance: 0,
             combo: 0,
             shield: false,
-            magnet: 0,
-            night: false
+            magnet: 0
         };
 
         const el = {
@@ -520,17 +514,6 @@
         }
 
         function updateEnvironment() {
-            const cycle = Math.floor(state.distance / 1500) % 2;
-            if (cycle === 1 && !state.night) {
-                state.night = true;
-                document.body.classList.add('night-mode');
-                el.fog.style.opacity = '1';
-                AudioEngine.playSFX(200, 'square', 0.5, 100); // Гул ночи
-            } else if (cycle === 0 && state.night) {
-                state.night = false;
-                document.body.classList.remove('night-mode');
-                el.fog.style.opacity = '0';
-            }
             const worldIndex = Math.floor(state.distance / 1000) % 4;
             const colors = ['#7ad8d0', '#ff9ecd', '#ffdf6b', '#a9e4ef'];
             el.stage.style.background = colors[worldIndex];
