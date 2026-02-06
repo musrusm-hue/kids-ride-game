@@ -362,6 +362,7 @@
                 <img src="дети.jpeg" alt="Дети">
             </div>
             <div style="font-size: 0.8rem; font-weight: bold; color: white; margin-top: 2px;">VROOM!</div>
+            <div style="font-size: 0.5rem; color: rgba(255,255,255,0.5); position: absolute; bottom: 5px;">v11.2</div>
         </div>
     </div>
 
@@ -388,7 +389,10 @@
         const AudioEngine = {
             ctx: null, master: null, soundOn: true, engineOsc: null, engineGain: null, musicTimer: null,
             musicPos: 0,
-            melody: [261.63, 329.63, 392.00, 523.25, 392.00, 329.63], // C-E-G-C арпеджио
+            melody: [
+                261.63, 0, 329.63, 0, 392.00, 0, 523.25, 392.00,
+                349.23, 0, 440.00, 0, 392.00, 0, 329.63, 261.63
+            ], // Более сложная 16-ти шаговая мелодия
             init() {
                 if (this.ctx) return;
                 this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -396,14 +400,14 @@
                 this.master.connect(this.ctx.destination);
                 this.master.gain.value = 0.5;
             },
-            playSFX(freq, type = 'sine', duration = 0.1, slide = 0) {
+            playSFX(freq, type = 'sine', duration = 0.1, slide = 0, vol = 0.3) {
                 if (!this.soundOn || !this.ctx) return;
                 const osc = this.ctx.createOscillator();
                 const g = this.ctx.createGain();
                 osc.type = type;
                 osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
                 if (slide) osc.frequency.exponentialRampToValueAtTime(slide, this.ctx.currentTime + duration);
-                g.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                g.gain.setValueAtTime(vol, this.ctx.currentTime);
                 g.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
                 osc.connect(g); g.connect(this.master);
                 osc.start(); osc.stop(this.ctx.currentTime + duration);
@@ -434,13 +438,11 @@
             stopEngine() { if (this.engineOsc) { this.engineOsc.stop(); this.engineOsc = null; } },
             playMusicStep() {
                 const fever = state.combo >= 10;
-                const scale = fever ? [392.00, 440.00, 493.88, 523.25] : this.melody;
-                const note = scale[this.musicPos % scale.length];
+                const note = this.melody[this.musicPos % this.melody.length];
                 this.musicPos++;
-
-                // Ритмический рисунок: акцент на каждую 4-ю ноту
-                const vol = (this.musicPos % 4 === 0) ? 0.4 : 0.2;
-                this.playSFX(note, fever ? 'sawtooth' : 'sine', 0.15, note / 2);
+                if (note === 0) return;
+                const vol = (this.musicPos % 4 === 1) ? 0.4 : 0.2;
+                this.playSFX(note, fever ? 'sawtooth' : 'triangle', 0.2, note / 1.1, vol);
             }
         };
 
