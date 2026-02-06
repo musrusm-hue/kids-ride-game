@@ -387,6 +387,8 @@
         // --- AUDIO ENGINE ---
         const AudioEngine = {
             ctx: null, master: null, soundOn: true, engineOsc: null, engineGain: null, musicTimer: null,
+            musicPos: 0,
+            melody: [261.63, 329.63, 392.00, 523.25, 392.00, 329.63], // C-E-G-C арпеджио
             init() {
                 if (this.ctx) return;
                 this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -432,11 +434,26 @@
             stopEngine() { if (this.engineOsc) { this.engineOsc.stop(); this.engineOsc = null; } },
             playMusicStep() {
                 const fever = state.combo >= 10;
-                const notes = fever ? [392.00, 440.00, 493.88, 523.25] : [261.63, 293.66, 329.63, 349.23, 392.00, 440.00];
-                const note = notes[Math.floor(Math.random() * notes.length)];
-                this.playSFX(note, fever ? 'sawtooth' : 'square', fever ? 0.1 : 0.15, note / (fever ? 1.2 : 2));
+                const scale = fever ? [392.00, 440.00, 493.88, 523.25] : this.melody;
+                const note = scale[this.musicPos % scale.length];
+                this.musicPos++;
+
+                // Ритмический рисунок: акцент на каждую 4-ю ноту
+                const vol = (this.musicPos % 4 === 0) ? 0.4 : 0.2;
+                this.playSFX(note, fever ? 'sawtooth' : 'sine', 0.15, note / 2);
             }
         };
+
+        // Исправление звука при выключении экрана
+        document.addEventListener('visibilitychange', () => {
+            if (AudioEngine.ctx) {
+                if (document.hidden) {
+                    AudioEngine.ctx.suspend();
+                } else {
+                    AudioEngine.ctx.resume();
+                }
+            }
+        });
 
         function toggleSound() {
             AudioEngine.init();
