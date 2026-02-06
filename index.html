@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Веселая поездка: Kids Ride</title>
+    <style>
+        :root {
+            --sky: #7ad8d0;
+            --road: #95a5a6;
+            --pink: #ff9ecd;
+            --yellow: #ffdf6b;
+            --white: #ffffff;
+            --font: 'Comic Sans MS', 'Chalkboard SE', cursive;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font);
+            background: var(--sky);
+            overflow: hidden;
+            height: 100vh;
+            height: 100dvh;
+            position: fixed;
+            width: 100%;
+            touch-action: none;
+        }
+
+        #game-stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: var(--sky);
+            overflow: hidden;
+            transition: background 3s ease;
+        }
+
+        /* ДОРОГА */
+        #road {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 100%;
+            background: var(--road);
+            border-left: 8px solid var(--white);
+            border-right: 8px solid var(--white);
+        }
+
+        #road::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            width: 6px;
+            height: 100%;
+            background: repeating-linear-gradient(0deg, #fff, #fff 50px, transparent 50px, transparent 100px);
+            animation: road-flow 0.6s linear infinite;
+        }
+
+        @keyframes road-flow {
+            from {
+                transform: translateY(0);
+            }
+
+            to {
+                transform: translateY(100px);
+            }
+        }
+
+        /* МАШИНА С ДЕТЬМИ */
+        #player {
+            position: absolute;
+            bottom: 15%;
+            left: 50%;
+            width: 90px;
+            height: 130px;
+            background: var(--pink);
+            border-radius: 25px;
+            transform: translateX(-50%);
+            z-index: 100;
+            box-shadow: 0 10px 0 #cc7eab, 0 20px 30px rgba(0, 0, 0, 0.2);
+            transition: left 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            /* Очень плавное движение */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 15px;
+        }
+
+        /* Окошко с фото детей */
+        #player-window {
+            width: 70px;
+            height: 70px;
+            background: #eee;
+            border: 6px solid var(--white);
+            border-radius: 50%;
+            overflow: hidden;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        #player-window img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #player::after {
+            /* Фары */
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 10px;
+            width: 15px;
+            height: 15px;
+            background: var(--yellow);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--yellow);
+        }
+
+        #player::before {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            right: 10px;
+            width: 15px;
+            height: 15px;
+            background: var(--yellow);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--yellow);
+        }
+
+        /* ОБЪЕКТЫ */
+        .game-object {
+            position: absolute;
+            font-size: 3rem;
+            transform: translate(-50%, -50%);
+            z-index: 50;
+            filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.2));
+            transition: transform 0.2s;
+        }
+
+        /* ИНТЕРФЕЙС */
+        #hud {
+            position: fixed;
+            top: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            z-index: 1000;
+        }
+
+        .hud-item {
+            background: var(--white);
+            padding: 10px 25px;
+            border-radius: 30px;
+            font-weight: 900;
+            font-size: 1.5rem;
+            box-shadow: 0 6px 0 var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ff6b81;
+        }
+
+        #energy-bar {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 25px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 20px;
+            border: 4px solid var(--white);
+            overflow: hidden;
+        }
+
+        #energy-fill {
+            width: 100%;
+            height: 100%;
+            background: #2ecc71;
+            transition: width 0.3s, background 0.5s;
+        }
+
+        /* ВСПЫШКА */
+        .flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+
+        /* ЭКРАН START/END */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--sky);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            text-align: center;
+        }
+
+        .btn-big {
+            padding: 20px 50px;
+            background: #ff4757;
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            font-size: 2rem;
+            font-weight: 900;
+            box-shadow: 0 10px 0 #cc3a47;
+            cursor: pointer;
+            margin-top: 30px;
+        }
+
+        .btn-big:active {
+            transform: translateY(5px);
+            box-shadow: 0 5px 0 #cc3a47;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="hud">
+        <div class="hud-item">⭐ <span id="val-score">0</span></div>
+        <div class="hud-item">🍭 <span id="val-energy">100</span></div>
+    </div>
+
+    <div id="game-stage">
+        <div id="road"></div>
+        <div id="player">
+            <div id="player-window">
+                <img src="дети.jpeg" alt="Дети">
+            </div>
+            <div style="font-size: 0.8rem; font-weight: bold; color: white; margin-top: 2px;">VROOM!</div>
+        </div>
+
+        <div id="left-zone" style="position:absolute; width:50%; height:100%; left:0; z-index:1500;">
+        </div>
+        <div id="right-zone" style="position:absolute; width:50%; height:100%; right:0; z-index:1500;"></div>
+    </div>
+
+    <div id="energy-bar">
+        <div id="energy-fill"></div>
+    </div>
+
+    <div id="start-overlay" class="overlay">
+        <h1 style="font-size: 3rem; color: #fff; text-shadow: 0 5px 0 rgba(0,0,0,0.1);">ДЕТСКАЯ ПОЕЗДКА!</h1>
+        <img src="дети.jpeg"
+            style="width: 150px; height: 150px; border-radius: 50%; border: 8px solid #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
+        <p style="color: #fff; font-size: 1.5rem; margin-top: 20px;">Собирай конфеты 🍭 и звезды ⭐!<br>Поворачивай влево
+            и вправо!</p>
+        <button class="btn-big" onclick="startGame()">ПОЕХАЛИ! 🚗</button>
+    </div>
+
+    <div id="flash-screen" class="flash"></div>
+
+    <script>
+        let state = {
+            active: false,
+            score: 0,
+            energy: 100,
+            speed: 6,
+            lane: 1,
+            distance: 0
+        };
+
+        const el = {
+            stage: document.getElementById('game-stage'),
+            player: document.getElementById('player'),
+            score: document.getElementById('val-score'),
+            energy: document.getElementById('val-energy'),
+            energyFill: document.getElementById('energy-fill'),
+            flash: document.getElementById('flash-screen')
+        };
+
+        function move(dir) {
+            if (!state.active) return;
+            state.lane = Math.max(0, Math.min(2, state.lane + dir));
+            el.player.style.left = [18, 50, 82][state.lane] + '%';
+        }
+
+        // TOUCH HANDLING
+        const leftZone = document.getElementById('left-zone');
+        const rightZone = document.getElementById('right-zone');
+
+        const handleTouch = (dir) => (e) => {
+            e.preventDefault();
+            move(dir);
+        };
+
+        leftZone.addEventListener('touchstart', handleTouch(-1), { passive: false });
+        rightZone.addEventListener('touchstart', handleTouch(1), { passive: false });
+
+        // Mouse support for testing
+        leftZone.addEventListener('mousedown', (e) => { move(-1); });
+        rightZone.addEventListener('mousedown', (e) => { move(1); });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') move(-1);
+            if (e.key === 'ArrowRight') move(1);
+        });
+
+        function startGame() {
+            document.getElementById('start-overlay').style.display = 'none';
+            state.active = true;
+            gameLoop();
+            spawnLoop();
+        }
+
+        function gameLoop() {
+            if (!state.active) return;
+
+            state.distance++;
+            state.energy -= 0.05;
+
+            if (state.energy <= 0) endGame();
+
+            updateUI();
+            updateBackground();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updateUI() {
+            el.score.textContent = Math.floor(state.score);
+            el.energy.textContent = Math.ceil(state.energy);
+            el.energyFill.style.width = state.energy + '%';
+
+            if (state.energy < 30) el.energyFill.style.background = '#e74c3c';
+            else el.energyFill.style.background = '#2ecc71';
+        }
+
+        function updateBackground() {
+            const worldIndex = Math.floor(state.distance / 1000) % 4;
+            const colors = ['#7ad8d0', '#ff9ecd', '#ffdf6b', '#a9e4ef'];
+            el.stage.style.background = colors[worldIndex];
+        }
+
+        function spawnLoop() {
+            if (!state.active) return;
+
+            const roll = Math.random();
+            if (roll < 0.6) createObj('⭐');
+            else if (roll < 0.8) createObj('🍭');
+            else if (roll < 0.95) createObj('🚧'); // Конус
+            else createObj('🎈'); // Бонус-прыжок или просто приз
+
+            setTimeout(spawnLoop, Math.max(400, 1200 - (state.distance / 100)));
+        }
+
+        function createObj(type) {
+            const obj = document.createElement('div');
+            obj.className = 'game-object';
+            obj.innerHTML = type;
+            const lane = Math.floor(Math.random() * 3);
+            obj.style.left = [18, 50, 82][lane] + '%';
+            obj.style.top = '-100px';
+            el.stage.appendChild(obj);
+
+            let top = -100;
+            const moveObj = () => {
+                if (!state.active) { obj.remove(); return; }
+                top += state.speed;
+                obj.style.top = top + 'px';
+
+                // Коллизия (Машина крупнее, ловим легче)
+                if (top > window.innerHeight * 0.7 && top < window.innerHeight * 0.88) {
+                    if (lane === state.lane) {
+                        collect(type);
+                        obj.remove();
+                        return;
+                    }
+                }
+
+                if (top < window.innerHeight + 100) requestAnimationFrame(moveObj);
+                else obj.remove();
+            };
+            requestAnimationFrame(moveObj);
+        }
+
+        function collect(type) {
+            if (type === '⭐') {
+                state.score += 10;
+                flashEffect('#ffdf6b');
+            } else if (type === '🍭') {
+                state.energy = Math.min(100, state.energy + 15);
+                flashEffect('#2ecc71');
+            } else if (type === '🚧') {
+                state.energy -= 20;
+                state.distance = Math.max(0, state.distance - 200);
+                flashEffect('#e74c3c');
+            } else if (type === '🎈') {
+                state.score += 50;
+                flashEffect('#ff9ecd');
+            }
+        }
+
+        function flashEffect(color) {
+            el.flash.style.background = color;
+            el.flash.style.opacity = '0.3';
+            setTimeout(() => el.flash.style.opacity = '0', 100);
+        }
+
+        function endGame() {
+            state.active = false;
+            document.body.innerHTML = `
+                <div class="overlay" style="background: #ff9ecd">
+                    <h1 style="color:white; font-size:3rem;">ПОЕЗДКА ОКОНЧЕНА!</h1>
+                    <div style="font-size: 5rem;">🍦</div>
+                    <h2>Твой счёт: ${Math.floor(state.score)}</h2>
+                    <button class="btn-big" onclick="location.reload()">ЕЩЁ РАЗ! 🚗</button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+
+</html>
